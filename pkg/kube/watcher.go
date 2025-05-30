@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-var startUpTime = time.Now()
+var startUpTime time.Time
 
 type EventHandler func(event *EnhancedEvent)
 
@@ -77,7 +77,7 @@ func (e *EventWatcher) isEventDiscarded(event *corev1.Event) bool {
 		// Log discarded events if they were created after the watcher started
 		// (to suppres warnings from initial synchrnization)
 		if timestamp.After(startUpTime) {
-			log.Warn().
+			log.Debug().
 				Str("event age", eventAge.String()).
 				Str("event namespace", event.Namespace).
 				Str("event name", event.Name).
@@ -102,6 +102,8 @@ func (e *EventWatcher) onEvent(event *corev1.Event) {
 		Msg("Received event")
 
 	e.metricsStore.EventsProcessed.Inc()
+	e.metricsStore.LastProcessedEventTimestamp.SetToCurrentTime()
+	metrics.SetLastEventProcessedTime()
 
 	ev := &EnhancedEvent{
 		Event: *event.DeepCopy(),
@@ -115,7 +117,7 @@ func (e *EventWatcher) onEvent(event *corev1.Event) {
 		if err != nil {
 			if errors.IsNotFound(err) {
 				ev.InvolvedObject.Deleted = true
-				log.Error().Err(err).Msg("Object not found, likely deleted")
+				log.Debug().Err(err).Msg("Object not found, likely deleted")
 			} else {
 				log.Error().Err(err).Msg("Failed to get object metadata")
 			}
@@ -137,6 +139,9 @@ func (e *EventWatcher) OnDelete(obj interface{}) {
 }
 
 func (e *EventWatcher) Start() {
+	// Set the startup time when the watcher actually starts
+	startUpTime = time.Now()
+
 	e.wg.Add(1)
 	go func() {
 		defer e.wg.Done()

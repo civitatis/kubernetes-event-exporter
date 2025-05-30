@@ -14,14 +14,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var globalMetricsStore *Store
+var lastEventProcessedTime time.Time
+
 type Store struct {
-	EventsProcessed      prometheus.Counter
-	EventsDiscarded      prometheus.Counter
-	WatchErrors          prometheus.Counter
-	SendErrors           prometheus.Counter
-	BuildInfo            prometheus.GaugeFunc
-	KubeApiReadCacheHits prometheus.Counter
-	KubeApiReadRequests  prometheus.Counter
+	EventsProcessed             prometheus.Counter
+	EventsDiscarded             prometheus.Counter
+	WatchErrors                 prometheus.Counter
+	SendErrors                  prometheus.Counter
+	BuildInfo                   prometheus.GaugeFunc
+	KubeApiReadCacheHits        prometheus.Counter
+	KubeApiReadRequests         prometheus.Counter
+	LastProcessedEventTimestamp prometheus.Gauge
 }
 
 // promLogger implements promhttp.Logger
@@ -35,6 +39,26 @@ func (pl promLogger) Println(v ...interface{}) {
 func (pl promLogger) Log(v ...interface{}) error {
 	log.Logger.Info().Msg(fmt.Sprint(v...))
 	return nil
+}
+
+func isEventExporterReady() bool {
+	if globalMetricsStore == nil {
+		return false
+	}
+
+	// If no events have been processed yet, allow 5 minutes for startup
+	if lastEventProcessedTime.IsZero() {
+		return true
+	}
+
+	// Check if we've processed events recently (within 5 minutes)
+	timeSinceLastEvent := time.Since(lastEventProcessedTime)
+	return timeSinceLastEvent < 5*time.Minute
+}
+
+// SetLastEventProcessedTime updates the timestamp when an event is processed
+func SetLastEventProcessedTime() {
+	lastEventProcessedTime = time.Now()
 }
 
 func Init(addr string, tlsConf string) {
@@ -68,12 +92,19 @@ func Init(addr string, tlsConf string) {
 	http.Handle("/", landingPage)
 
 	http.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {
+		// Basic health check - just return OK if the service is running
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "OK")
 	})
 	http.HandleFunc("/-/ready", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "OK")
+		// Readiness check - verify we're actually processing events
+		if isEventExporterReady() {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "OK")
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintf(w, "Not Ready - No events processed recently")
+		}
 	})
 
 	metricsServer := http.Server{
@@ -90,7 +121,7 @@ func Init(addr string, tlsConf string) {
 }
 
 func NewMetricsStore(name_prefix string) *Store {
-	return &Store{
+	store := &Store{
 		BuildInfo: promauto.NewGaugeFunc(
 			prometheus.GaugeOpts{
 				Name: name_prefix + "build_info",
@@ -129,7 +160,15 @@ func NewMetricsStore(name_prefix string) *Store {
 			Name: name_prefix + "kube_api_read_cache_misses",
 			Help: "The total number of read requests served from kube-apiserver when looking up object metadata",
 		}),
+		LastProcessedEventTimestamp: promauto.NewGauge(prometheus.GaugeOpts{
+			Name: name_prefix + "last_processed_event_timestamp",
+			Help: "The timestamp of the last successfully processed event",
+		}),
 	}
+
+	// Store global reference for health checks
+	globalMetricsStore = store
+	return store
 }
 
 func DestroyMetricsStore(store *Store) {
@@ -140,5 +179,6 @@ func DestroyMetricsStore(store *Store) {
 	prometheus.Unregister(store.BuildInfo)
 	prometheus.Unregister(store.KubeApiReadCacheHits)
 	prometheus.Unregister(store.KubeApiReadRequests)
+	prometheus.Unregister(store.LastProcessedEventTimestamp)
 	store = nil
 }
