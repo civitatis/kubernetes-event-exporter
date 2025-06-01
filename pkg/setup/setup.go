@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/resmoio/kubernetes-event-exporter/pkg/exporter"
+	"github.com/civitatis/kubernetes-event-exporter/pkg/exporter"
 )
 
 func ParseConfigFromBytes(configBytes []byte) (exporter.Config, error) {

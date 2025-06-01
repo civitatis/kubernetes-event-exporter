@@ -1,4 +1,4 @@
-module github.com/resmoio/kubernetes-event-exporter
+module github.com/civitatis/kubernetes-event-exporter
 
 go 1.20
 
@@ -127,3 +127,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+// Para desarrollo: apuntar al directorio local
+replace github.com/civitatis/kubernetes-event-exporter => ./

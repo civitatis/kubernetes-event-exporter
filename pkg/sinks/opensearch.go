@@ -13,7 +13,7 @@ import (
 
 	opensearch "github.com/opensearch-project/opensearch-go"
 	opensearchapi "github.com/opensearch-project/opensearch-go/opensearchapi"
-	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
+	"github.com/civitatis/kubernetes-event-exporter/pkg/kube"
 	"github.com/rs/zerolog/log"
 )
 

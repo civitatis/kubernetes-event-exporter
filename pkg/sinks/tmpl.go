@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"text/template"
 
-	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
+	"github.com/civitatis/kubernetes-event-exporter/pkg/kube"
 	"github.com/Masterminds/sprig/v3"
 )
 

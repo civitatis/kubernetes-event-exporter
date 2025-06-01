@@ -7,7 +7,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/resmoio/kubernetes-event-exporter/pkg/metrics"
+	"github.com/civitatis/kubernetes-event-exporter/pkg/metrics"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

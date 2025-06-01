@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
+	"github.com/civitatis/kubernetes-event-exporter/pkg/kube"
 	"io/ioutil"
 	"net/http"
 	"strconv"
